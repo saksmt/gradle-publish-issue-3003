@@ -1,0 +1,37 @@
+dependencyManagement {
+    generatedPomCustomization {
+        enabled = true
+    }
+}
+
+List<Project> allProjects(Project currentRoot = rootProject) {
+    List<Project> children = currentRoot.childProjects.values().collect { allProjects(it) }.flatten() as List<Project>
+    children.add(currentRoot)
+    return children
+}
+
+ext.pomConfigurer = {
+    asNode().appendNode('packaging', 'pom')
+
+    def props = asNode().appendNode('properties')
+
+    versions.each { name, version -> props.appendNode("${name}.version", version) }
+    props.appendNode('test-core.version', project.version)
+
+    dependencyManagement.pomConfigurer.configurePom(asNode())
+    def deps = asNode().dependencyManagement.dependencies.last()
+
+    allProjects().each { proj ->
+        def dep = deps.appendNode('dependency')
+        dep.appendNode('artifactId', proj.name)
+        dep.appendNode('groupId', project.group)
+        dep.appendNode('version', project.version)
+    }
+
+    asNode().children().last() + {
+        delegate.build {
+            delegate.sourceDirectory 'src/main/kotlin'
+            delegate.testSourceDirectory 'src/test/kotlin'
+        }
+    }
+}

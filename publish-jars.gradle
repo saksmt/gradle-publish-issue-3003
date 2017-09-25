@@ -1,0 +1,77 @@
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+build.dependsOn(sourcesJar)
+
+artifacts {
+    archives sourcesJar
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: rootProject.properties.get('releases-repo')) {
+                authentication(
+                        userName: rootProject.properties.get('artifactory.username'),
+                        password: rootProject.properties.get('artifactory.token')
+                )
+            }
+
+            snapshotRepository(url: rootProject.properties.get('snapshots-repo')) {
+                authentication(
+                        userName: rootProject.properties.get('artifactory.username'),
+                        password: rootProject.properties.get('artifactory.token')
+                )
+            }
+        }
+    }
+}
+
+def installer = install.repositories.mavenInstaller
+def deployer = uploadArchives.repositories.mavenDeployer
+
+[installer, deployer]*.pom*.whenConfigured { pom ->
+    pom.project {
+        packaging 'jar'
+    }
+
+    pom.withXml {
+        asNode().dependencies.'*'.each {
+            if (it.scope*.value != null) {
+                it.scope*.value = 'compile'
+            }
+        }
+
+        asNode().dependencyManagement.dependencies.'*'.each {
+            if (it.scope*.value != null) {
+                it.scope*.value = 'compile'
+            }
+        }
+
+        def repos = asNode().appendNode('repositories')
+
+        project.repositories.findAll { it.name != 'MavenLocal' }.each {
+            def repo = repos.appendNode('repository')
+            repo.appendNode('id', it.name)
+            repo.appendNode('name', it.name)
+            repo.appendNode('url', it.url)
+        }
+    }
+
+    if (project.hasProperty('pomConfigurer')) {
+        pom.withXml(pomConfigurer)
+    }
+}
+
+install.dependsOn build
+uploadArchives.dependsOn build
+
+task 'publish-snapshot'() {
+    dependsOn uploadArchives
+}
+
+task publish() {
+    dependsOn uploadArchives
+}

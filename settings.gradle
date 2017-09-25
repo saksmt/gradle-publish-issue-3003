@@ -1,0 +1,3 @@
+include ':pom'
+include ':some-module'
+

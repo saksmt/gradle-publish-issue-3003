@@ -1,0 +1,25 @@
+ext.versions = [
+        someVersion: '4.2'
+]
+
+buildscript {
+    repositories {
+        maven { url 'http://repo.spring.io/plugins-release' }
+    }
+
+    dependencies {
+        classpath 'io.spring.gradle:dependency-management-plugin:1.0.1.RELEASE'
+    }
+}
+
+allprojects {
+    apply plugin: 'maven'
+    apply plugin: 'io.spring.dependency-management'
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    apply from: file("${rootProject.projectDir}/publish-jars.gradle")
+}
+
